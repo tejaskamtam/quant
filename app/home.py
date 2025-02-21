@@ -16,21 +16,24 @@ def main():
 
     # -------------------------
 
+    
+    selected_ticker = manager.get("ticker")
+    selected_chart_type = manager.get("chart_type")
+    time.sleep(0.2) # wait for cookie to be set
+
     # Sidebar for ticker selection
     st.sidebar.header("Select Ticker")
     tickers = list_tickers()
-    # ticker
-    selected_ticker = manager.get("ticker")
     selected_ticker = st.sidebar.selectbox(
-        "Ticker", tickers, index=tickers.index(selected_ticker))
+        "Ticker", tickers, index=tickers.index(selected_ticker or "SPY"))
     manager.set("ticker", selected_ticker, key="ticker")
     # get ticker data
     df: pd.DataFrame = get_ticker_data(selected_ticker)
-
-    # chart type
-    selected_chart_type = manager.get("chart_type")
+    
+    
+    # Sidebar for chart type selection
     selected_chart_type = st.sidebar.selectbox("Chart Type", ["Line", "Candlestick"], index=[
-                                               "Line", "Candlestick"].index(selected_chart_type))
+                                               "Line", "Candlestick"].index(selected_chart_type or "Line"))
     manager.set("chart_type", selected_chart_type, key="chart_type")
 
     # -------------------------

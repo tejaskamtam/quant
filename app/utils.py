@@ -22,7 +22,9 @@ def get_ticker_data(tickers: str | list[str], index_col: str = None) -> list[flo
         assert all(ticker in list_tickers() for ticker in tickers), "All tickers must be in the list of tickers"
         return {ticker: pd.read_sql_table(ticker, engine, index_col=index_col) for ticker in tickers}
 
-def calculate_expected_return(ticker: str, df: pd.DataFrame) -> float:
+def calculate_expected_return(df: pd.DataFrame | str) -> float:
+    if isinstance(df, str):
+        df = get_ticker_data(df, index_col="timestamp")
     # get rolling annual returns at every day
     annual_returns = df["return"][::-1].rolling(window=251).apply(lambda x: np.prod(x+1)-1).dropna()
     # estimate the PDF using gaussian kernel density estimation
@@ -95,3 +97,4 @@ def calculate_KLDivergence(ticker: str) -> pd.DataFrame:
         "Q": quarterly_kl_divergence,
         "Y": yearly_kl_divergence
     }, index=["Stat"])
+
