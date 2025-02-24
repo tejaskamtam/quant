@@ -1,10 +1,14 @@
+import sys
 import time
+from matplotlib import pyplot as plt
+import numpy as np
 import streamlit as st
-from pypfopt import EfficientFrontier
+from pypfopt import EfficientFrontier, plotting
 import extra_streamlit_components as stx
 from utils import get_ticker_data, list_tickers, calculate_expected_return
 import pandas as pd
 import plotly.graph_objects as go
+import plotly.tools as tls
 
 
 def main():
@@ -60,8 +64,22 @@ def main():
     for ticker, df in tickers.items():
         returns_df[ticker] = df["return"]
     cov_df = returns_df.cov()
-    # efficient frontier
-    
+
+    # data info
+    col00, col01, col02 = st.columns(3, gap="large")
+    with col00:
+        st.subheader("Asset Correlation")
+        # plot correlation matrix
+        corr_fig = go.Figure(data=go.Heatmap(z=cov_df.corr().values, x=cov_df.corr().columns, y=cov_df.corr().index, colorscale="Viridis"))
+        st.plotly_chart(corr_fig, key="corr_fig")
+    with col01:
+        st.subheader("Asset Covariance")
+        # plot covariance matrix
+        cov_fig = go.Figure(data=go.Heatmap(z=cov_df.values, x=cov_df.columns, y=cov_df.index, colorscale="Viridis"))
+        st.plotly_chart(cov_fig, key="cov_fig")
+    with col02:
+        st.subheader("Asset Information")
+        st.dataframe(pd.DataFrame({"Expected Return": list(expected_returns.values()), "Volatility": list(np.sqrt(np.diag(cov_df))), "Sharpe Ratio": (np.array(list(expected_returns.values()))-risk_free_rate/100)/np.sqrt(np.diag(cov_df))}, index=list(expected_returns.keys())), use_container_width=True)
     
     # -------------------------
     st.write("---")
@@ -106,7 +124,7 @@ def main():
     with col3:
         st.subheader("Max Return Portfolio")
         st.write(f"Maximizes portfolio return for a given target volatility:")
-        target_volatility = st.number_input("Target Volatility (%)", min_value=0.0, max_value=100.0, value=2.0, step=0.01)
+        target_volatility = st.number_input("Target Volatility (%)", min_value=0.0, max_value=100.0, value=min(np.sqrt(np.diag(cov_df)))*100, step=0.01)
         max_return_ef = EfficientFrontier(list(expected_returns.values()), cov_df)
         try:
             max_return_weights = max_return_ef.efficient_risk(target_volatility=target_volatility/100)
@@ -143,19 +161,49 @@ def main():
             st.error(str(e))
             efficient_return_performance = (None, None, None)
             
-        
-
-    # write performance metrics
-    # get SPY benchmark
-    spy_return_df = pd.DataFrame({"SPY":get_ticker_data("SPY")["return"]})
-    spy_portfolio = EfficientFrontier([calculate_expected_return("SPY")], spy_return_df.cov())
-    spy_portfolio.min_volatility()
-    spy_performance = spy_portfolio.portfolio_performance(risk_free_rate=risk_free_rate/100)
-
-
     st.write("---")
-    st.write(f"Risk Free Rate: {risk_free_rate}%")
-    st.write(pd.DataFrame({"SPY": spy_performance, "Max Sharpe Portfolio": max_sharpe_performance, "Min Volatility Portfolio": min_vol_performance, "Max Return Portfolio": max_return_performance, "Markowitz Portfolio": efficient_return_performance}, index=["Expected Return", "Volatility", "Sharpe Ratio"]))
+    st.subheader("Efficient Frontier")
+    col5, col6 = st.columns(2)
+    with col5:
+        # write performance metrics
+        # get SPY benchmark
+        spy_return_df = pd.DataFrame({"SPY":get_ticker_data("SPY")["return"]})
+        spy_portfolio = EfficientFrontier([calculate_expected_return("SPY")], spy_return_df.cov())
+        spy_portfolio.min_volatility()
+        spy_performance = spy_portfolio.portfolio_performance(risk_free_rate=risk_free_rate/100)
+
+        st.write(f"Risk Free Rate: {risk_free_rate}%")
+        st.dataframe(pd.DataFrame({"SPY": spy_performance, "Max Sharpe Portfolio": max_sharpe_performance, "Min Volatility Portfolio": min_vol_performance, "Max Return Portfolio": max_return_performance, "Markowitz Portfolio": efficient_return_performance}, index=["Expected Return", "Volatility", "Sharpe Ratio"]), use_container_width=True)
+
+    with col6:
+        # plot efficient frontier
+        min_vol_ret, min_vol_sigma, _ = min_vol_performance
+        max_return_ret, max_return_sigma, _ = max_return_performance
+        max_sharpe_ret, max_sharpe_sigma, _ = max_sharpe_performance
+        efficient_return_ret, efficient_return_sigma, _ = efficient_return_performance
+
+        capm = risk_free_rate/100 + (max_sharpe_ret-risk_free_rate/100)*np.linspace(0, 2, 100)
+        capm_stdev = np.linspace(0, 2, 100)*max_sharpe_sigma
+
+        ef = EfficientFrontier(list(expected_returns.values()), cov_df)
+        fig, ax = plt.subplots()
+        # plot efficient frontier
+        plotting.plot_efficient_frontier(ef, ax=ax, show_assets=False)
+        ax.legend().remove()
+        plot_fig = tls.mpl_to_plotly(fig)
+        plot_fig.update_layout(
+            xaxis_title="Volatility",
+            yaxis_title="Expected Return",
+        )
+        
+        # plot CAPM
+        plot_fig.add_trace(go.Scatter(x=capm_stdev, y=capm, mode="lines", name="CAPM", marker_symbol="star", marker_size=10, marker_color="orange"))
+        # plot efficient portfolios
+        for ret, sigma, name in [(min_vol_ret, min_vol_sigma, "Min Volatility Portfolio"), (max_return_ret, max_return_sigma, "Max Return Portfolio"), (max_sharpe_ret, max_sharpe_sigma, "Max Sharpe Portfolio"), (efficient_return_ret, efficient_return_sigma, "Markowitz Portfolio")]:
+            plot_fig.add_trace(go.Scatter(x=[sigma], y=[ret], mode="markers", name=name, marker_symbol="star" if name=="Max Sharpe Portfolio" else "circle", marker_size=15))
+
+        st.plotly_chart(plot_fig, key="efficient_frontier_fig")
+
 
 if __name__ == "__main__":
     main()

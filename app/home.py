@@ -112,7 +112,7 @@ def main():
 
     metrics = pd.concat([ann_vols, betas, kl_div],
                         axis='index').set_index('Stat')
-    st.write(metrics)
+    st.dataframe(metrics, use_container_width=True)
 
 
 if __name__ == "__main__":
