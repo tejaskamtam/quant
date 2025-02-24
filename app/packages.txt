@@ -1,0 +1,8 @@
+plotly
+pandas
+numpy
+scipy
+extra_streamlit_components
+pypfopt
+tenforty
+matplotlib
