@@ -1,8 +1,9 @@
 plotly
 pandas
-numpy
 scipy
-extra_streamlit_components
-pypfopt
+extra-streamlit-components
+PyPortfolioOpt
 tenforty
 matplotlib
+python-dotenv
+sqlalchemy

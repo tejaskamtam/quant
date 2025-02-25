@@ -5,6 +5,13 @@
       "driver": "SQLite",
       "name": "stocks1day",
       "database": "${workspaceFolder:quant}/data/stocks1day.db"
+    },
+    {
+      "previewLimit": 50,
+      "driver": "SQLite",
+      "name": "mac:stocks1day",
+      "database": "${workspaceFolder:quant}/data/stocks1day.db"
     }
-  ]
+  ],
+  "sqltools.useNodeRuntime": true
 }

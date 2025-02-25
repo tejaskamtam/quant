@@ -4,12 +4,16 @@ import os
 import dotenv
 from scipy.stats import entropy, gaussian_kde, norm
 import numpy as np
+import datetime
+import requests
+
 dotenv.load_dotenv()
 CONNECTION = os.getenv("SQLALCHEMY_STOCKS1DAY_URI")
-engine = create_engine(CONNECTION)
-
+TWELVEDATA_KEY = os.getenv("TWELVEDATA_API_KEY")
+ALPHAVANTAGE_KEY = os.getenv("ALPHAVANTAGE_API_KEY")
 
 def list_tickers() -> list[str]:
+    engine = create_engine(CONNECTION)
     with engine.connect() as conn:
         cursor = conn.execute(
             text("SELECT name FROM sqlite_master WHERE type='table';"))
@@ -19,6 +23,7 @@ def list_tickers() -> list[str]:
 def get_ticker_data(tickers: str | list[str], index_col: str = None) -> list[float]:
     assert isinstance(tickers, str) or isinstance(
         tickers, list), "Tickers must be a string or a list"
+    engine = create_engine(CONNECTION)
     if isinstance(tickers, str):
         assert tickers in list_tickers(), f"Ticker {tickers} not found"
         return pd.read_sql_table(tickers, engine, index_col=index_col)
@@ -176,4 +181,25 @@ def calculate_future_value(
         })
 
     df = pd.DataFrame(data)
+    return df
+
+def get_ticker_close(ticker: str, date: datetime.date) -> float:
+    date = date.strftime("%Y-%m-%d")
+    url = f"https://api.twelvedata.com/eod?symbol={ticker}&date={date}&apikey={TWELVEDATA_KEY}"
+    response = requests.get(url).json()
+    if "close" in response:
+        return response["close"]
+    else:
+        raise Exception(f"No data found for {ticker} on {date}")
+
+def get_raw_options_data(ticker: str, date: datetime.date) -> dict:
+    date = date.strftime("%Y-%m-%d")
+    url = f"https://www.alphavantage.co/query?function=HISTORICAL_OPTIONS&symbol={ticker}&date={date}&apikey={ALPHAVANTAGE_KEY}"
+    response = requests.get(url).json()["data"]
+    return pd.DataFrame(response)
+
+def get_options_chain(ticker: str, date: datetime.date) -> pd.DataFrame:
+    url = f"https://www.alphavantage.co/query?function=HISTORICAL_OPTIONS&symbol={ticker}&date={date}&apikey={TWELVEDATA_KEY}"
+    response = requests.get(url).json()["data"]
+    df = pd.DataFrame(response)
     return df

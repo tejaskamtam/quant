@@ -65,6 +65,8 @@ def main():
         returns_df[ticker] = df["return"]
     cov_df = returns_df.cov()
 
+    risk_free_rate = st.number_input("Risk Free Rate (%)", min_value=0.0, max_value=100.0, value=float(manager.get("risk_free_rate") or 4.625) , step=0.01)
+    manager.set("risk_free_rate", risk_free_rate, key="risk_free_rate")
     # data info
     col00, col01, col02 = st.columns(3, gap="large")
     with col00:
@@ -83,8 +85,6 @@ def main():
     
     # -------------------------
     st.write("---")
-    risk_free_rate = st.number_input("Risk Free Rate (%)", min_value=0.0, max_value=100.0, value=float(manager.get("risk_free_rate") or 4.625) , step=0.01)
-    manager.set("risk_free_rate", risk_free_rate, key="risk_free_rate")
     col1, col2 = st.columns(2)
     with col1:
         # max sharpe portfolio
@@ -124,7 +124,7 @@ def main():
     with col3:
         st.subheader("Max Return Portfolio")
         st.write(f"Maximizes portfolio return for a given target volatility:")
-        target_volatility = st.number_input("Target Volatility (%)", min_value=0.0, max_value=100.0, value=min(np.sqrt(np.diag(cov_df)))*100, step=0.01)
+        target_volatility = st.number_input("Target Volatility (%)", min_value=0.0, max_value=100.0, value=max(np.sqrt(np.diag(cov_df)))*100-np.finfo(float).eps, step=0.01)
         max_return_ef = EfficientFrontier(list(expected_returns.values()), cov_df)
         try:
             max_return_weights = max_return_ef.efficient_risk(target_volatility=target_volatility/100)
@@ -144,7 +144,7 @@ def main():
         # markowitz (efficient return) portfolio
         st.subheader("Markowitz Portfolio")
         st.write(f"Minimizes portfolio volatility for a given target return:")
-        target_return = st.number_input("Target Return (%)", min_value=0.0, max_value=100.0, value=8.0, step=0.01)
+        target_return = st.number_input("Target Return (%)", min_value=0.0, max_value=100.0, value=np.mean(list(expected_returns.values()))*100, step=0.01)
         efficient_return_ef = EfficientFrontier(list(expected_returns.values()), cov_df)
         try:
             efficient_return_weights = efficient_return_ef.efficient_return(target_return=target_return/100)
